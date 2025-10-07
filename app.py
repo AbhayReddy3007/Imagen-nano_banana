@@ -105,186 +105,31 @@ def run_nano_banana_edit(edit_prompt, base_bytes):
         st.error(f"❌ Nano Banana editing error: {str(e)}")
         return None
 
-# ---------------- PROMPT TEMPLATES & STYLES ----------------
+# ---------------- PROMPT TEMPLATES ----------------
 PROMPT_TEMPLATES = {
-    "Marketing": """
-You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals.
-
-Task:
-- Take the user's raw input and turn it into a polished, professional, campaign-ready image prompt.
-- Expand the idea with rich marketing-oriented details that make it visually persuasive.
-
-When refining, include:
-- Background & setting (modern, lifestyle, commercial, aspirational)
-- Lighting & atmosphere (studio lights, golden hour, cinematic)
-- Style (photorealistic, cinematic, product photography, lifestyle branding)
-- Perspective & composition (wide shot, close-up, dramatic angles)
-- Mood, tone & branding suitability (premium, sleek, aspirational)
-
-Special Brand Rule:
-- If the user asks for an image related to a specific brand, seamlessly add the brand's tagline into the final image prompt.
-- For **Dr. Reddy's**, the correct tagline is: "Good Health Can't Wait."
-
-Rules:
-- Stay faithful to the user's idea but elevate it for use in ads, social media, or presentations.
-- Output **only** the final refined image prompt (no explanations, no extra text).
-
-User raw input:
-{USER_PROMPT}
-
-Refined marketing image prompt:
-""",
-
-    "Design": """
-You are a senior AI prompt engineer supporting a creative design team.
-
-Your job:
-- Expand raw input into a visually inspiring, design-oriented image prompt.
-- Add imaginative details about:
-  • Artistic styles (minimalist, abstract, futuristic, flat, 3D render, watercolor, digital illustration)
-  • Color schemes, palettes, textures, and patterns
-  • Composition and balance (symmetry, negative space, creative framing)
-  • Lighting and atmosphere (soft glow, vibrant contrast, surreal shading)
-  • Perspective (isometric, top-down, wide shot, close-up)
-
-Rules:
-- Keep fidelity to the idea but make it highly creative and visually unique.
-- Output only the final refined image prompt.
-
-User's raw prompt:
-"{USER_PROMPT}"
-
-Refined design image prompt:
-""",
-
-    "General": """
-You are an expert AI prompt engineer specialized in creating vivid and descriptive image prompts.
-
-Your job:
-- Expand the user's input into a detailed, clear prompt for an image generation model.
-- Add missing details such as:
-  • Background and setting
-  • Lighting and mood
-  • Style and realism level
-  • Perspective and composition
-
-Rules:
-- Stay true to the user's intent.
-- Keep language concise, descriptive, and expressive.
-- Output only the final refined image prompt.
-
-User's raw prompt:
-"{USER_PROMPT}"
-
-Refined general image prompt:
-""",
-
-    "DPEX": """
-You are a senior AI prompt engineer creating refined prompts for IT and technology-related visuals.
-
-Your job:
-- Transform the raw input into a detailed, professional, and technology-focused image prompt.
-- Expand with contextual details about:
-  • Technology environments (server rooms, data centers, cloud systems, coding workspaces)
-  • Digital elements (network diagrams, futuristic UIs, holograms, cybersecurity visuals)
-  • People in IT roles (developers, engineers, admins, tech support, collaboration)
-  • Tone (innovative, technical, futuristic, professional)
-  • Composition (screens, servers, code on monitors, abstract digital patterns)
-  • Lighting and effects (LED glow, cyberpunk tones, neon highlights, modern tech ambiance)
-
-Rules:
-- Ensure images are suitable for IT presentations, product demos, training, technical documentation, and digital transformation campaigns.
-- Stay true to the user's intent but emphasize a technological and innovative look.
-- Output only the final refined image prompt.
-
-User's raw prompt:
-"{USER_PROMPT}"
-
-Refined DPEX image prompt:
-""",
-
-    "HR": """
-You are a senior AI prompt engineer creating refined prompts for human resources and workplace-related visuals.
-
-Your job:
-- Transform the raw input into a detailed, professional, and HR-focused image prompt.
-- Expand with contextual details about:
-  • Workplace settings (modern office, meeting rooms, open workspaces, onboarding sessions)
-  • People interactions (interviews, teamwork, training, collaboration, diversity and inclusion)
-  • Themes (employee engagement, professional growth, recruitment, performance evaluation)
-  • Composition (groups in discussion, managers mentoring, collaborative workshops)
-  • Lighting and tone (bright, welcoming, professional, inclusive)
-
-Rules:
-- Ensure images are suitable for HR presentations, recruitment campaigns, internal training, or employee engagement material.
-- Stay true to the user's intent but emphasize people, culture, and workplace positivity.
-- Output only the final refined image prompt.
-
-User's raw prompt:
-"{USER_PROMPT}"
-
-Refined HR image prompt:
-""",
-
-    "Business": """
-You are a senior AI prompt engineer creating refined prompts for business and corporate visuals.
-
-Your job:
-- Transform the raw input into a detailed, professional, and business-oriented image prompt.
-- Expand with contextual details about:
-  • Corporate settings (boardrooms, skyscrapers, modern offices, networking events)
-  • Business activities (presentations, negotiations, brainstorming sessions, teamwork)
-  • People (executives, entrepreneurs, consultants, diverse teams, global collaboration)
-  • Tone (professional, ambitious, strategic, innovative)
-  • Composition (formal meetings, handshake deals, conference tables, city skyline backgrounds)
-  • Lighting and atmosphere (clean, modern, premium, professional)
-
-Rules:
-- Ensure images are suitable for corporate branding, investor decks, strategy sessions, or professional reports.
-- Stay true to the user's intent but emphasize professionalism, ambition, and success.
-- Output only the final refined image prompt.
-
-User's raw prompt:
-"{USER_PROMPT}"
-
-Refined business image prompt:
-"""
+    "Marketing": "You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals. Transform this into a professional marketing image prompt: {USER_PROMPT}",
+    "Design": "You are a creative design expert. Transform this into a visually inspiring design image prompt: {USER_PROMPT}",
+    "General": "You are an expert AI prompt engineer. Expand this into a detailed, descriptive image prompt: {USER_PROMPT}",
+    "DPEX": "You are a technology expert. Transform this into a professional IT/tech-focused image prompt: {USER_PROMPT}",
+    "HR": "You are an HR professional. Transform this into a workplace/HR-focused image prompt: {USER_PROMPT}",
+    "Business": "You are a business expert. Transform this into a professional corporate/business image prompt: {USER_PROMPT}"
 }
 
+# ---------------- STYLE DESCRIPTIONS ----------------
 STYLE_DESCRIPTIONS = {
-    "None": "No special styling — keep the image natural, faithful to the user's idea.",
-    "Smart": "A clean, balanced, and polished look. Professional yet neutral, visually appealing without strong artistic bias.",
-    "Cinematic": "Film-style composition with professional lighting. Wide dynamic range, dramatic highlights, storytelling feel.",
-    "Creative": "Playful, imaginative, and experimental. Bold artistic choices, unexpected elements, and expressive color use.",
-    "Bokeh": "Photography style with shallow depth of field. Subject in sharp focus with soft, dreamy, blurred backgrounds.",
-    "Macro": "Extreme close-up photography. High detail, textures visible, shallow focus highlighting minute features.",
-    "Illustration": "Hand-drawn or digitally illustrated style. Clear outlines, stylized shading, expressive and artistic.",
-    "3D Render": "Photorealistic or stylized CGI. Crisp geometry, depth, shadows, and reflective surfaces with realistic rendering.",
-    "Fashion": "High-end editorial photography. Stylish, glamorous poses, bold makeup, controlled lighting, and modern aesthetic.",
-    "Minimalist": "Simple and uncluttered. Few elements, large negative space, flat or muted color palette, clean composition.",
-    "Moody": "Dark, atmospheric, and emotional. Strong shadows, high contrast, deep tones, cinematic ambiance.",
-    "Portrait": "Focus on the subject. Natural skin tones, shallow depth of field, close-up or waist-up framing, studio or natural lighting.",
-    "Stock Photo": "Professional, commercial-quality photo. Neutral subject matter, polished composition, business-friendly aesthetic.",
-    "Vibrant": "Bold, saturated colors. High contrast, energetic mood, eye-catching and lively presentation.",
-    "Pop Art": "Comic-book and pop-art inspired. Bold outlines, halftone patterns, flat vivid colors, high contrast, playful tone.",
-    "Vector": "Flat vector graphics. Smooth shapes, sharp edges, solid fills, and clean scalable style like logos or icons.",
-    "Watercolor": "Soft, fluid strokes with delicate blending and washed-out textures. Artistic and dreamy.",
-    "Oil Painting": "Rich, textured brushstrokes. Classic fine art look with deep color blending.",
-    "Charcoal": "Rough, sketchy textures with dark shading. Artistic, raw, dramatic effect.",
-    "Line Art": "Minimal monochrome outlines with clean, bold strokes. No shading, focus on form.",
-    "Anime": "Japanese animation style with vibrant colors, clean outlines, expressive features, and stylized proportions.",
-    "Cartoon": "Playful, exaggerated features, simplified shapes, bold outlines, and bright colors.",
-    "Pixel Art": "Retro digital art style. Small, pixel-based visuals resembling old-school video games.",
-    "Fantasy Art": "Epic fantasy scenes. Magical elements, mythical creatures, enchanted landscapes.",
-    "Surreal": "Dreamlike, bizarre imagery. Juxtaposes unexpected elements, bending reality.",
-    "Concept Art": "Imaginative, detailed artwork for games or films. Often moody and cinematic.",
-    "Cyberpunk": "Futuristic neon city vibes. High contrast, glowing lights, dark tones, sci-fi feel.",
-    "Steampunk": "Retro-futuristic style with gears, brass, Victorian aesthetics, and industrial design.",
-    "Neon Glow": "Bright neon outlines and glowing highlights. Futuristic, nightlife aesthetic.",
-    "Low Poly": "Simplified 3D style using flat geometric shapes and polygons.",
-    "Isometric": "3D look with isometric perspective. Often used for architecture, games, and diagrams.",
-    "Vintage": "Old-school, retro tones. Faded colors, film grain, sepia, or retro print feel.",
-    "Graffiti": "Urban street art style with bold colors, spray paint textures, and rebellious tone."
+    "None": "No special styling",
+    "Smart": "Clean, balanced, professional look",
+    "Cinematic": "Film-style composition with dramatic lighting",
+    "Creative": "Playful, imaginative, experimental style",
+    "Bokeh": "Shallow depth of field with blurred backgrounds",
+    "Minimalist": "Simple, uncluttered with negative space",
+    "Vibrant": "Bold, saturated colors, high contrast",
+    "Watercolor": "Soft, fluid strokes with washed-out textures",
+    "Oil Painting": "Rich, textured brushstrokes",
+    "Anime": "Japanese animation style",
+    "Cartoon": "Playful, exaggerated features",
+    "Cyberpunk": "Futuristic neon city vibes",
+    "Vintage": "Old-school, retro tones with film grain"
 }
 
 # ---------------- GENERATE SECTION ----------------
@@ -292,7 +137,7 @@ st.header("✨ Generate Images (Imagen 4)")
 
 dept = st.selectbox("🏢 Department", list(PROMPT_TEMPLATES.keys()), index=0)
 style = st.selectbox("🎨 Style", list(STYLE_DESCRIPTIONS.keys()), index=0)
-user_prompt = st.text_area("Enter your prompt", height=120)
+user_prompt = st.text_area("Enter your prompt", height=120, placeholder="Describe the image you want to generate...")
 num_images = st.slider("🧾 Number of images", 1, 4, 1)
 
 # GENERATE BUTTON
@@ -301,12 +146,26 @@ if st.button("🚀 Generate with Imagen"):
         st.warning("Please enter a prompt.")
     else:
         with st.spinner("Refining prompt with Gemini..."):
+            # Simple prompt refinement without complex templates
             refinement_prompt = PROMPT_TEMPLATES[dept].replace("{USER_PROMPT}", user_prompt)
+            
+            # Add style if selected
             if style != "None":
-                refinement_prompt += f"\n\nApply style: {STYLE_DESCRIPTIONS[style]}"
-            text_resp = TEXT_MODEL.generate_content(refinement_prompt)
-            enhanced_prompt = safe_get_enhanced_text(text_resp).strip()
-            st.info(f"🔮 Enhanced Prompt:\n\n{enhanced_prompt}")
+                refinement_prompt += f"\n\nApply this style: {STYLE_DESCRIPTIONS[style]}"
+            
+            st.write(f"**Refinement prompt sent to Gemini:** {refinement_prompt}")
+            
+            try:
+                text_resp = TEXT_MODEL.generate_content(refinement_prompt)
+                enhanced_prompt = safe_get_enhanced_text(text_resp).strip()
+                st.success(f"**🔮 Enhanced Prompt:**\n\n{enhanced_prompt}")
+            except Exception as e:
+                st.error(f"Error refining prompt: {e}")
+                # Use original prompt if refinement fails
+                enhanced_prompt = user_prompt
+                if style != "None":
+                    enhanced_prompt += f", {STYLE_DESCRIPTIONS[style]}"
+                st.info(f"Using fallback prompt: {enhanced_prompt}")
 
         with st.spinner("Generating with Imagen 4..."):
             try:
@@ -314,29 +173,39 @@ if st.button("🚀 Generate with Imagen"):
                     prompt=enhanced_prompt, 
                     number_of_images=num_images
                 )
+                
+                if not resp or not resp.images:
+                    st.error("No images generated. Please try a different prompt.")
+                    st.stop()
+                    
             except Exception as e:
                 st.error(f"⚠️ Imagen error: {e}")
                 st.stop()
 
-            for i in range(num_images):
+            # Display generated images
+            for i in range(min(num_images, len(resp.images))):
                 try:
                     gen_obj = resp.images[i]
                     img_bytes = get_image_bytes_from_genobj(gen_obj)
                     if not img_bytes:
-                        st.warning(f"Could not extract image {i}")
+                        st.warning(f"Could not extract image {i+1}")
                         continue
                     
                     filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
+                    
+                    # Store in session state
                     st.session_state.generated_images.append({
                         "filename": filename, 
                         "content": img_bytes,
                         "prompt": enhanced_prompt
                     })
 
+                    # Display image and controls
                     col1, col2 = st.columns([3, 1])
                     with col1:
                         st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
                     with col2:
+                        # Download button
                         st.download_button(
                             "⬇️ Download",
                             data=img_bytes,
@@ -345,6 +214,7 @@ if st.button("🚀 Generate with Imagen"):
                             key=f"dl_{i}_{datetime.datetime.now().timestamp()}",
                         )
                         
+                        # Edit button
                         if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}"):
                             st.session_state.editing_image = {
                                 "filename": filename, 
@@ -355,12 +225,12 @@ if st.button("🚀 Generate with Imagen"):
                             st.rerun()
                             
                 except Exception as e:
-                    st.warning(f"⚠️ Unable to process image {i}: {e}")
+                    st.warning(f"⚠️ Unable to process image {i+1}: {e}")
 
 # ---------------- NANO BANANA EDIT SECTION ----------------
 if st.session_state.editing_image:
     st.divider()
-    st.header("🖌️ Edit with Nano Banana (Gemini 2.5 Flash Image)")
+    st.header("🖌️ Edit with Nano Banana")
     
     img_data = st.session_state.editing_image["content"]
     img_name = st.session_state.editing_image["filename"]
@@ -376,60 +246,54 @@ if st.session_state.editing_image:
                 st.write(original_prompt)
     
     with col2:
-        st.subheader("Nano Banana Editor")
+        st.subheader("Edit Instructions")
         edit_prompt = st.text_area(
-            "Edit Instructions:",
-            placeholder="Examples:\n• 'Change the background to a beach sunset'\n• 'Make the colors more vibrant'\n• 'Add a cat sitting in the corner'\n• 'Convert to black and white with red accent'\n• 'Make it look like a watercolor painting'",
-            height=120,
+            "What changes would you like to make?",
+            placeholder="Examples:\n• Change background to beach\n• Make it more colorful\n• Add a cat\n• Convert to black and white",
+            height=100,
             key="nano_edit_prompt"
         )
         
-        if st.button("🚀 Apply Nano Banana Edit", type="primary", key="nano_edit_btn"):
+        if st.button("🚀 Apply Edit", type="primary", key="nano_edit_btn"):
             if not edit_prompt.strip():
                 st.warning("Please enter edit instructions.")
             else:
-                with st.spinner("Nano Banana is editing your image..."):
+                with st.spinner("Editing image with Nano Banana..."):
                     edited_bytes = run_nano_banana_edit(edit_prompt, img_data)
                     
                     if edited_bytes:
                         st.success("✅ Edit completed!")
-                        st.balloons()
                         
                         # Display edited image
-                        edited_filename = f"nano_edited_{img_name}"
+                        edited_filename = f"edited_{img_name}"
                         st.image(
                             Image.open(BytesIO(edited_bytes)), 
                             caption="Edited Version",
                             use_column_width=True
                         )
                         
-                        # Download button
+                        # Download button for edited image
                         st.download_button(
-                            "⬇️ Download Edited Image",
+                            "⬇️ Download Edited",
                             data=edited_bytes,
                             file_name=edited_filename,
                             mime="image/png",
                             key="nano_dl",
                         )
-                        
-                        # Save to history
-                        if st.button("💾 Save to History"):
-                            st.session_state.generated_images.append({
-                                "filename": edited_filename,
-                                "content": edited_bytes,
-                                "prompt": f"Nano Edit: {edit_prompt}"
-                            })
-                            st.toast("Edited image saved to history!")
                     else:
-                        st.error("""
-                        ❌ Nano Banana editing failed. This could be because:
-                        1. The model doesn't support direct image editing yet
-                        2. The edit instructions were too complex
-                        3. Temporary API issue
-                        
-                        Try simpler edits or use the Generate section with modified prompts.
-                        """)
+                        st.error("❌ Editing failed. The Nano Banana model might not support direct image editing yet.")
         
         if st.button("❌ Clear Editor", type="secondary"):
             st.session_state.editing_image = None
             st.rerun()
+
+# ---------------- DEBUG INFO ----------------
+with st.sidebar:
+    st.header("🔧 Debug Info")
+    st.write(f"Generated images: {len(st.session_state.generated_images)}")
+    st.write(f"Editing image: {st.session_state.editing_image is not None}")
+    
+    if st.button("Clear All Images"):
+        st.session_state.generated_images = []
+        st.session_state.editing_image = None
+        st.rerun()
