@@ -407,7 +407,7 @@ if st.session_state.generated_images:
             content = img.get("content")
             if isinstance(content, (bytes, bytearray)) and len(content) > 0:
                 try:
-                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
+                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_column_width=True)
                 except Exception as e:
                     st.warning(f"⚠️ Unable to display image: {e}")
             else:
