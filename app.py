@@ -31,6 +31,7 @@ TEXT_MODEL = GenerativeModel("gemini-2.0-flash")  # Prompt refiner
 st.set_page_config(page_title="AI Image Generator + Editor", layout="wide")
 st.title("🖼️ Imagen + Nano Banana | AI Image Generator & Editor")
 
+
 # ---------------- STATE ----------------
 if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
@@ -38,6 +39,15 @@ if "edited_images" not in st.session_state:
     st.session_state.edited_images = []
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "generate"
+
+
+# ---------------- IMAGE DISPLAY WRAPPER ----------------
+def show_image_safe(image_data, caption="Image"):
+    """Handles image rendering for all Streamlit versions."""
+    try:
+        st.image(image_data, caption=caption, use_container_width=True)
+    except TypeError:
+        st.image(image_data, caption=caption, use_column_width=True)
 
 
 # ---------------- HELPERS ----------------
@@ -343,7 +353,7 @@ with tab_generate:
                         filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
                         st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
 
-                        st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_container_width=True)
+                        show_image_safe(Image.open(BytesIO(img_bytes)), caption=filename)
 
                         col_a, col_b = st.columns(2)
                         with col_a:
@@ -362,19 +372,17 @@ with tab_edit:
     uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"], key="file_upload")
     base_image = None
 
-    # If image came from Generate tab
     if "edit_image_bytes" in st.session_state:
         base_image = st.session_state["edit_image_bytes"]
-        st.image(Image.open(BytesIO(base_image)),
-                 caption=f"Editing: {st.session_state.get('edit_image_name','Selected Image')}",
-                 use_container_width=True)
+        show_image_safe(Image.open(BytesIO(base_image)),
+                        caption=f"Editing: {st.session_state.get('edit_image_name','Selected Image')}")
     elif uploaded_file:
         image_bytes = uploaded_file.read()
         img = Image.open(BytesIO(image_bytes)).convert("RGB")
         buf = BytesIO()
         img.save(buf, format="PNG")
         base_image = buf.getvalue()
-        st.image(base_image, caption="Uploaded Image", use_container_width=True, output_format="PNG")
+        show_image_safe(base_image, caption="Uploaded Image")
 
     edit_prompt = st.text_area("Enter your edit instruction", height=120, key="edit_prompt")
     num_edits = st.slider("🧾 Number of edited images", 1, 3, 1, key="num_edits")
@@ -392,7 +400,7 @@ with tab_edit:
 
                 if edited_versions:
                     for i, out_bytes in enumerate(edited_versions):
-                        st.image(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}", use_container_width=True)
+                        show_image_safe(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}")
                         st.download_button(
                             f"⬇️ Download Edited {i+1}",
                             data=out_bytes,
@@ -418,7 +426,7 @@ if st.session_state.generated_images:
         with st.expander(f"{i+1}. {img.get('filename', 'Unnamed Image')}"):
             content = img.get("content")
             if isinstance(content, (bytes, bytearray)) and len(content) > 0:
-                st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
+                show_image_safe(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"))
             st.download_button(
                 "⬇️ Download Again",
                 data=content,
@@ -434,10 +442,10 @@ if st.session_state.edited_images:
             col1, col2 = st.columns(2)
             with col1:
                 orig_bytes = entry.get("original")
-                st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_container_width=True)
+                show_image_safe(Image.open(BytesIO(orig_bytes)), caption="Original")
             with col2:
                 edited_bytes = entry.get("edited")
-                st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_container_width=True)
+                show_image_safe(Image.open(BytesIO(edited_bytes)), caption="Edited")
                 st.download_button(
                     "⬇️ Download Edited",
                     data=edited_bytes,
