@@ -1,20 +1,24 @@
+# Core Streamlit + display libs
 streamlit==1.38.0
 Pillow==10.3.0
 
-# Google Cloud Vertex AI SDK
+# Vertex AI SDK
 google-cloud-aiplatform==1.64.0
 google-auth==2.33.0
 google-auth-oauthlib==1.2.0
 google-api-python-client==2.133.0
 google-cloud-storage==2.16.0
 
-# Protocol buffers and gRPC
+# Compatibility-safe protobuf/grpc versions
 protobuf==4.25.3
-grpcio==1.66.2
+grpcio==1.62.2
 
-# Utilities (safe versions for Streamlit)
-requests==2.32.3
+# Streamlit markdown dependencies (known working combo)
 rich==13.7.1
 markdown-it-py==3.0.0
 mdurl==0.1.2
 pygments==2.17.2
+
+# Utilities
+requests==2.32.3
+
