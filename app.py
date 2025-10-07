@@ -24,7 +24,7 @@ TEXT_MODEL = GenerativeModel("gemini-2.0-flash")  # Prompt refiner
 
 # ---------------- STREAMLIT CONFIG ----------------
 st.set_page_config(page_title="AI Image Generator + Editor", layout="wide")
-st.title("🖼️ Imagen + Nano Banana | AI Image Generator & Editor")
+st.title("Imagen + Nano Banana")
 
 # ---------------- STATE ----------------
 if "generated_images" not in st.session_state:
@@ -67,7 +67,7 @@ def get_image_bytes_from_genobj(gen_obj):
 
 # ---------------- FIXED EDIT FUNCTION ----------------
 def run_edit_flow(edit_prompt, base_bytes):
-    """Edit image using Nano Banana (Gemini 2.5 Flash Image)."""
+    """Edit image """
     input_image = Part.from_data(mime_type="image/png", data=base_bytes)
 
     edit_instruction = f"""
@@ -179,11 +179,6 @@ User raw input:
 
 Refined marketing image prompt:
 """,
-
-    
-
-    
-
     "DPEX": """
 You are a senior AI prompt engineer creating refined prompts for IT and technology-related visuals.
 
@@ -302,18 +297,18 @@ os.makedirs("outputs/generated", exist_ok=True)
 os.makedirs("outputs/edited", exist_ok=True)
 
 # ---------------- TABS ----------------
-tab_generate, tab_edit = st.tabs(["✨ Generate (Imagen 4)", "🖌️ Edit (Nano Banana)"])
+tab_generate, tab_edit = st.tabs([" Generate Images", "Edit Images"])
 
 # ---------------- GENERATE TAB ----------------
 with tab_generate:
-    st.header("✨ Generate Images with Imagen 4")
+    st.header(" Generate Images ")
 
     dept = st.selectbox("🏢 Department", list(PROMPT_TEMPLATES.keys()), index=0)
     style = st.selectbox("🎨 Style", list(STYLE_DESCRIPTIONS.keys()), index=0)
     user_prompt = st.text_area("Enter your prompt", height=120)
     num_images = 1
 
-    if st.button("🚀 Generate with Imagen"):
+    if st.button(" Generate Images"):
         if not user_prompt.strip():
             st.warning("Please enter a prompt.")
         else:
@@ -356,7 +351,7 @@ with tab_generate:
 
 # ---------------- EDIT TAB ----------------
 with tab_edit:
-    st.header("🖌️ Edit Images with Nano Banana")
+    st.header("Edit Images")
 
     uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"])
     base_image = None
