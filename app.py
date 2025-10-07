@@ -1,29 +1,23 @@
 import os
-import re
 import datetime
-import json
 from io import BytesIO
 import streamlit as st
-from PIL import Image
-
+from PIL import Image, ImageEnhance
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
 from google.oauth2 import service_account
 
 # ---------------- CONFIG ----------------
 PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
-
 credentials = service_account.Credentials.from_service_account_info(
     dict(st.secrets["gcp_service_account"])
 )
-
 vertexai.init(project=PROJECT_ID, location="global", credentials=credentials)
 
 # ---------------- MODELS ----------------
-# Imagen 4 for generation, Nano Banana (Gemini 2.5 Flash Image) for editing
-IMAGEN_MODEL = GenerativeModel("imagen-4.0-pro")  # 🔥 Generation model
-IMAGE_MODEL = GenerativeModel("gemini-2.5-flash-image")  # 🎨 Editing model
-TEXT_MODEL = GenerativeModel("gemini-2.0-flash")  # Prompt refinement
+IMAGEN_MODEL = GenerativeModel("imagen-4.0-pro")          # For generation
+IMAGE_MODEL = GenerativeModel("gemini-2.5-flash-image")   # For editing
+TEXT_MODEL = GenerativeModel("gemini-2.0-flash")          # For prompt refinement
 
 # ---------------- STREAMLIT UI ----------------
 st.set_page_config(page_title="AI Image Generator + Editor", layout="wide")
@@ -35,9 +29,7 @@ if "generated_images" not in st.session_state:
 if "edited_images" not in st.session_state:
     st.session_state.edited_images = []
 
-# ---------------- PROMPT TEMPLATES ----------------
-# (Keep your existing PROMPT_TEMPLATES and STYLE_DESCRIPTIONS here — unchanged)
-# ⬇️ Just paste all your templates and style dictionaries below this comment
+# ---------------- PROMPT TEMPLATES & STYLES ----------------
 PROMPT_TEMPLATES = {
     "Marketing": """
 You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals.
@@ -184,6 +176,7 @@ Refined business image prompt:
 """
 }
 
+
 STYLE_DESCRIPTIONS = {
     "None": "No special styling — keep the image natural, faithful to the user’s idea.",
     "Smart": "A clean, balanced, and polished look. Professional yet neutral, visually appealing without strong artistic bias.",
@@ -224,11 +217,8 @@ STYLE_DESCRIPTIONS = {
     "Vintage": "Old-school, retro tones. Faded colors, film grain, sepia, or retro print feel.",
     "Graffiti": "Urban street art style with bold colors, spray paint textures, and rebellious tone."
 }
-# --------------------------------------------------
+# ------------------------------------------------------------
 
-# (Paste PROMPT_TEMPLATES and STYLE_DESCRIPTIONS here)
-
-# ---------------- HELPERS ----------------
 def safe_get_enhanced_text(resp):
     if hasattr(resp, "text") and resp.text:
         return resp.text
@@ -240,28 +230,40 @@ def safe_get_enhanced_text(resp):
     return str(resp)
 
 
-def run_edit_flow(edit_prompt, base_bytes, filename):
-    """Run Gemini edit on base_bytes with given edit_prompt"""
+def sharpen_image(img_bytes):
+    """Slightly enhance sharpness and contrast for text clarity"""
+    try:
+        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+        sharp = ImageEnhance.Sharpness(img).enhance(1.4)
+        contrast = ImageEnhance.Contrast(sharp).enhance(1.15)
+        buf = BytesIO()
+        contrast.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:
+        return img_bytes
+
+
+def run_edit_flow(edit_prompt, base_bytes):
+    """Run Nano Banana edit"""
     input_image = Part.from_data(mime_type="image/png", data=base_bytes)
-    edit_instruction = f"Edit the provided image as follows: {edit_prompt}. Always return only the edited image as inline PNG."
-
+    edit_instruction = (
+        f"Edit the provided image as follows: {edit_prompt}. "
+        "Always return only the edited image as inline PNG."
+    )
     resp = IMAGE_MODEL.generate_content([edit_instruction, input_image])
-
     out_bytes = None
     text_fallback = None
-
     for part in resp.candidates[0].content.parts:
         if hasattr(part, "inline_data") and part.inline_data.data:
             out_bytes = part.inline_data.data
         elif hasattr(part, "text") and part.text:
             text_fallback = part.text
-
     if out_bytes:
         return out_bytes
-    else:
-        if text_fallback:
-            st.warning(f"⚠️ Gemini did not return an image. Response: {text_fallback}")
-        return None
+    if text_fallback:
+        st.warning(f"⚠️ Gemini did not return an image. Response: {text_fallback}")
+    return None
+
 
 # ---------------- TABS ----------------
 tab_generate, tab_edit = st.tabs(["✨ Generate Images", "🖌️ Edit Images"])
@@ -285,26 +287,44 @@ with tab_generate:
                     refinement_prompt += f"\n\nApply the style: {STYLE_DESCRIPTIONS[style_gen]}"
                 text_resp = TEXT_MODEL.generate_content(refinement_prompt)
                 enhanced_prompt = safe_get_enhanced_text(text_resp).strip()
+
+                # Inject text-clarity enhancement
+                enhanced_prompt += (
+                    "\n\nEnsure that any visible text, signage, or typography is perfectly readable, "
+                    "sharp, and not distorted. Maintain high contrast and consistent font style."
+                )
                 st.info(f"🔮 Enhanced Prompt:\n\n{enhanced_prompt}")
 
-            with st.spinner("Generating images with Imagen 4..."):
+            with st.spinner("Generating high-resolution images with Imagen 4..."):
                 generated_raws = []
                 try:
-                    for i in range(num_images):
-                        resp = IMAGEN_MODEL.generate_content([enhanced_prompt])
+                    for _ in range(num_images):
+                        resp = IMAGEN_MODEL.generate_content(
+                            [enhanced_prompt],
+                            generation_config={
+                                "aspect_ratio": "1:1",
+                                "image_size": "1024x1024"
+                            },
+                        )
                         for part in resp.candidates[0].content.parts:
                             if hasattr(part, "inline_data") and part.inline_data.data:
-                                generated_raws.append(part.inline_data.data)
+                                img_bytes = part.inline_data.data
+                                img_bytes = sharpen_image(img_bytes)  # post-enhancement
+                                generated_raws.append(img_bytes)
                 except Exception as e:
                     st.error(f"⚠️ Image generation error: {e}")
 
                 if generated_raws:
                     for idx, img_bytes in enumerate(generated_raws):
-                        filename = f"{dept_gen.lower()}_{style_gen.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{idx}.png"
+                        filename = (
+                            f"{dept_gen.lower()}_{style_gen.lower()}_"
+                            f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{idx}.png"
+                        )
                         st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
-
                         st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
-                        st.download_button("⬇️ Download", data=img_bytes, file_name=filename, mime="image/png", key=f"dl_{idx}")
+                        st.download_button(
+                            "⬇️ Download", data=img_bytes, file_name=filename, mime="image/png", key=f"dl_{idx}"
+                        )
 
 # ---------------- EDIT MODE ----------------
 with tab_edit:
@@ -342,11 +362,7 @@ with tab_edit:
             with st.spinner("Editing image with Nano Banana..."):
                 edited_versions = []
                 for i in range(num_edit_images):
-                    out_bytes = run_edit_flow(
-                        enhanced_prompt,
-                        base_image,
-                        f"edit_{datetime.datetime.now().strftime('%H%M%S')}_{i}"
-                    )
+                    out_bytes = run_edit_flow(enhanced_prompt, base_image)
                     if out_bytes:
                         edited_versions.append(out_bytes)
 
