@@ -10,7 +10,6 @@ from vertexai.preview.vision_models import ImageGenerationModel
 from vertexai.generative_models import GenerativeModel, Part
 from google.oauth2 import service_account
 
-
 # ---------------- CONFIG ----------------
 PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
 credentials = service_account.Credentials.from_service_account_info(
@@ -24,7 +23,6 @@ IMAGEN_MODEL = ImageGenerationModel.from_pretrained("imagen-4.0-generate-001")
 NANO_BANANA = GenerativeModel("gemini-2.5-flash-image")
 TEXT_MODEL = GenerativeModel("gemini-2.0-flash")
 
-
 # ---------------- STREAMLIT CONFIG ----------------
 st.set_page_config(page_title="Imagen + Nano Banana", layout="wide")
 st.title("🖼️ Imagen + Nano Banana | AI Image Generator & Editor")
@@ -35,10 +33,9 @@ if "generated_images" not in st.session_state:
 if "editing_image" not in st.session_state:
     st.session_state.editing_image = None
 
-
 # ---------------- HELPERS ----------------
 def safe_get_enhanced_text(resp):
-    """Extract refined prompt text safely."""
+    """Extract refined text safely."""
     if hasattr(resp, "text") and resp.text:
         return resp.text
     if hasattr(resp, "candidates") and resp.candidates:
@@ -48,9 +45,8 @@ def safe_get_enhanced_text(resp):
             pass
     return str(resp)
 
-
 def get_image_bytes_from_genobj(gen_obj):
-    """Extract bytes from Imagen response object."""
+    """Extract image bytes from Imagen output."""
     if isinstance(gen_obj, (bytes, bytearray)):
         return bytes(gen_obj)
     for attr in ["image_bytes", "_image_bytes"]:
@@ -62,14 +58,13 @@ def get_image_bytes_from_genobj(gen_obj):
                 return getattr(gen_obj.image, attr)
     return None
 
-
 def run_edit_flow(edit_prompt, base_bytes):
-    """Edit image using Nano Banana (Gemini 2.5 Flash Image)."""
+    """Edit an image using Nano Banana (Gemini 2.5 Flash Image)."""
     input_image = Part.from_data(mime_type="image/png", data=base_bytes)
     edit_instruction = (
         f"You are an expert AI image editor. "
-        f"Apply the following edit: {edit_prompt}. "
-        f"Return only the edited image as inline PNG — no text or explanation."
+        f"Apply these edits carefully: {edit_prompt}. "
+        f"Return only the edited image as inline PNG — no text or captions."
     )
     resp = NANO_BANANA.generate_content([edit_instruction, input_image])
     for candidate in getattr(resp, "candidates", []):
@@ -77,7 +72,6 @@ def run_edit_flow(edit_prompt, base_bytes):
             if hasattr(part, "inline_data") and part.inline_data.data:
                 return part.inline_data.data
     return None
-
 
 # ---------------- PROMPTS & STYLES ----------------
 PROMPT_TEMPLATES = {
@@ -268,7 +262,6 @@ STYLE_DESCRIPTIONS = {
     "Graffiti": "Urban street art style with bold colors, spray paint textures, and rebellious tone."
 }
 
-
 # ---------------- GENERATE SECTION ----------------
 st.header("✨ Generate Images (Imagen 4)")
 
@@ -289,7 +282,7 @@ if st.button("🚀 Generate with Imagen"):
             enhanced_prompt = safe_get_enhanced_text(text_resp).strip()
             st.info(f"🔮 Enhanced Prompt:\n\n{enhanced_prompt}")
 
-        with st.spinner("Generating images with Imagen 4..."):
+        with st.spinner("Generating with Imagen 4..."):
             try:
                 resp = IMAGEN_MODEL.generate_images(prompt=enhanced_prompt, number_of_images=num_images)
             except Exception as e:
@@ -297,28 +290,31 @@ if st.button("🚀 Generate with Imagen"):
                 st.stop()
 
             for i in range(num_images):
-                gen_obj = None
                 try:
                     gen_obj = resp.images[i]
-                except Exception:
-                    continue
-                img_bytes = get_image_bytes_from_genobj(gen_obj)
-                if not img_bytes:
-                    continue
+                    img_bytes = get_image_bytes_from_genobj(gen_obj)
+                    if not img_bytes:
+                        continue
+                    filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
+                    st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
 
-                filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
-                st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
-
-                st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
-
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.download_button("⬇️ Download", data=img_bytes, file_name=filename, mime="image/png", key=f"dl_{i}")
-                with col_b:
-                    if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}"):
-                        st.session_state.editing_image = {"filename": filename, "content": img_bytes}
-                        st.toast("✅ Image sent to Nano Banana Editor below!")
-
+                    st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        unique_dl_key = f"dl_{i}_{datetime.datetime.now().timestamp()}"
+                        st.download_button(
+                            "⬇️ Download",
+                            data=img_bytes,
+                            file_name=filename,
+                            mime="image/png",
+                            key=unique_dl_key,
+                        )
+                    with col_b:
+                        if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}_{datetime.datetime.now().timestamp()}"):
+                            st.session_state.editing_image = {"filename": filename, "content": img_bytes}
+                            st.toast("✅ Image sent to Nano Banana Editor below!")
+                except Exception as e:
+                    st.warning(f"⚠️ Unable to display image {i}: {e}")
 
 # ---------------- INLINE EDIT SECTION ----------------
 if st.session_state.editing_image:
@@ -328,7 +324,6 @@ if st.session_state.editing_image:
     img_data = st.session_state.editing_image["content"]
     img_name = st.session_state.editing_image["filename"]
 
-    # Display image to be edited
     st.image(Image.open(BytesIO(img_data)), caption=f"Editing: {img_name}", use_column_width=True)
 
     edit_prompt = st.text_area("Enter your edit instruction", height=100, key="inline_edit_prompt")
@@ -348,17 +343,17 @@ if st.session_state.editing_image:
                 if edited_versions:
                     for i, out_bytes in enumerate(edited_versions):
                         st.image(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}", use_column_width=True)
+                        unique_edit_key = f"edit_dl_{i}_{img_name}_{datetime.datetime.now().timestamp()}"
                         st.download_button(
                             f"⬇️ Download Edited {i+1}",
                             data=out_bytes,
                             file_name=f"edited_{i}_{img_name}",
                             mime="image/png",
-                            key=f"edit_dl_{i}"
+                            key=unique_edit_key,
                         )
                 else:
                     st.error("❌ No edited image returned by Nano Banana.")
 
-    # Optional: Reset editor
     if st.button("❌ Clear Editor"):
         st.session_state.editing_image = None
         st.experimental_rerun()
