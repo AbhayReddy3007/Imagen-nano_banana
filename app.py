@@ -36,6 +36,8 @@ if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
 if "edited_images" not in st.session_state:
     st.session_state.edited_images = []
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "generate"
 
 
 # ---------------- HELPERS ----------------
@@ -66,30 +68,41 @@ def get_image_bytes_from_genobj(gen_obj):
 def run_edit_flow(edit_prompt, base_bytes):
     """Edit image using Nano Banana (Gemini 2.5 Flash Image)."""
     input_image = Part.from_data(mime_type="image/png", data=base_bytes)
-    edit_instruction = (
-        f"You are an expert visual editor AI. "
-        f"Apply these edits carefully: {edit_prompt}. "
-        f"Return only the edited image as an inline PNG — no text, captions, or explanations."
-    )
 
-    resp = NANO_BANANA.generate_content([edit_instruction, input_image])
+    edit_instruction = f"""
+You are a professional image editor AI.
+Task:
+- Take the provided image.
+- Apply these precise edits: {edit_prompt}.
+- Return ONLY the edited image as inline PNG — no text, no questions, no captions.
 
-    edited_image = None
-    for candidate in getattr(resp, "candidates", []):
-        for part in getattr(candidate.content, "parts", []):
-            if hasattr(part, "inline_data") and part.inline_data.data:
-                edited_image = part.inline_data.data
-                break
-        if edited_image:
-            break
+IMPORTANT:
+- Never ask clarifying questions.
+- Always output an edited image inline.
+"""
 
-    if not edited_image:
+    try:
+        response = NANO_BANANA.generate_content(
+            [edit_instruction, input_image],
+            generation_config={"response_mime_type": "image/png"},
+        )
+
+        for candidate in getattr(response, "candidates", []):
+            for part in getattr(candidate.content, "parts", []):
+                if hasattr(part, "inline_data") and part.inline_data.data:
+                    return part.inline_data.data
+
+        # fallback if Gemini returns text
         try:
-            fb = resp.candidates[0].content.parts[0].text
+            fb = response.candidates[0].content.parts[0].text
             st.warning(f"⚠️ Gemini did not return an image. Response: {fb}")
         except Exception:
             st.warning("⚠️ Gemini returned no image or text.")
-    return edited_image
+        return None
+
+    except Exception as e:
+        st.error(f"❌ Error while editing: {e}")
+        return None
 
 
 def select_image_for_edit(img_bytes, filename):
@@ -100,7 +113,7 @@ def select_image_for_edit(img_bytes, filename):
     st.toast(f"✅ Image '{filename}' sent to Nano Banana editor.")
 
 
-# ---------------- PROMPT TEMPLATES & STYLES ----------------
+# ---------------- PROMPT TEMPLATES ----------------
 PROMPT_TEMPLATES = {
     "Marketing": """
 You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals.
@@ -293,6 +306,7 @@ STYLE_DESCRIPTIONS = {
 # ---------------- TABS ----------------
 tab_generate, tab_edit = st.tabs(["✨ Generate (Imagen 4)", "🖌️ Edit (Nano Banana)"])
 
+
 # ---------------- GENERATE TAB ----------------
 with tab_generate:
     st.header("✨ Generate Images with Imagen 4")
@@ -302,7 +316,7 @@ with tab_generate:
     user_prompt = st.text_area("Enter your prompt", height=120, key="prompt_gen")
     num_images = st.slider("🧾 Number of images", 1, 4, 1, key="num_gen")
 
-    if st.button("🚀 Generate with Imagen"):
+    if st.button("🚀 Generate with Imagen", key="generate_btn"):
         if not user_prompt.strip():
             st.warning("Please enter a prompt.")
         else:
@@ -330,11 +344,11 @@ with tab_generate:
                         filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
                         st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
 
-                        st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
+                        st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_container_width=True)
 
                         col_a, col_b = st.columns(2)
                         with col_a:
-                            st.download_button("⬇️ Download", data=img_bytes, file_name=filename, mime="image/png", key=f"dl_{i}")
+                            st.download_button("⬇️ Download", data=img_bytes, file_name=filename, mime="image/png", key=f"dl_gen_{i}")
                         with col_b:
                             if st.button("🪄 Edit This Image", key=f"edit_btn_{i}"):
                                 select_image_for_edit(img_bytes, filename)
@@ -346,27 +360,26 @@ with tab_generate:
 with tab_edit:
     st.header("🖌️ Edit Images with Nano Banana")
 
-    uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"])
+    uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"], key="file_upload")
     base_image = None
 
-    # 🪄 Support direct handoff from Generate tab
     if "edit_image_bytes" in st.session_state:
         base_image = st.session_state["edit_image_bytes"]
         st.image(Image.open(BytesIO(base_image)),
                  caption=f"Editing: {st.session_state.get('edit_image_name','Selected Image')}",
-                 use_column_width=True)
+                 use_container_width=True)
     elif uploaded_file:
         image_bytes = uploaded_file.read()
         img = Image.open(BytesIO(image_bytes)).convert("RGB")
         buf = BytesIO()
         img.save(buf, format="PNG")
         base_image = buf.getvalue()
-        st.image(img, caption="Uploaded Image", use_column_width=True)
+        st.image(img, caption="Uploaded Image", use_container_width=True)
 
     edit_prompt = st.text_area("Enter your edit instruction", height=120, key="edit_prompt")
     num_edits = st.slider("🧾 Number of edited images", 1, 3, 1, key="num_edits")
 
-    if st.button("🚀 Edit with Nano Banana"):
+    if st.button("🚀 Edit with Nano Banana", key="edit_submit"):
         if not base_image or not edit_prompt.strip():
             st.warning("Please upload an image and enter instructions.")
         else:
@@ -379,13 +392,13 @@ with tab_edit:
 
                 if edited_versions:
                     for i, out_bytes in enumerate(edited_versions):
-                        st.image(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}", use_column_width=True)
+                        st.image(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}", use_container_width=True)
                         st.download_button(
                             f"⬇️ Download Edited {i+1}",
                             data=out_bytes,
                             file_name=f"edited_{i}.png",
                             mime="image/png",
-                            key=f"edit_dl_{i}"
+                            key=f"edit_dl_main_{i}"
                         )
                         st.session_state.edited_images.append({
                             "original": base_image,
@@ -407,18 +420,16 @@ if st.session_state.generated_images:
             content = img.get("content")
             if isinstance(content, (bytes, bytearray)) and len(content) > 0:
                 try:
-                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_column_width=True)
+                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
                 except Exception as e:
                     st.warning(f"⚠️ Unable to display image: {e}")
-            else:
-                st.warning(f"⚠️ Skipping invalid image: {img.get('filename', 'unknown')}")
             if isinstance(content, (bytes, bytearray)):
                 st.download_button(
                     "⬇️ Download Again",
                     data=content,
                     file_name=img.get("filename", "generated_image.png"),
                     mime="image/png",
-                    key=f"gen_dl_{i}"
+                    key=f"gen_dl_hist_{i}"
                 )
 
 # ----- Edited -----
@@ -430,20 +441,15 @@ if st.session_state.edited_images:
             with col1:
                 orig_bytes = entry.get("original")
                 if isinstance(orig_bytes, (bytes, bytearray)) and len(orig_bytes) > 0:
-                    st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_column_width=True)
-                else:
-                    st.warning("⚠️ Original image invalid.")
+                    st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_container_width=True)
             with col2:
                 edited_bytes = entry.get("edited")
                 if isinstance(edited_bytes, (bytes, bytearray)) and len(edited_bytes) > 0:
-                    st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_column_width=True)
-                else:
-                    st.warning("⚠️ Edited image invalid.")
-                if isinstance(edited_bytes, (bytes, bytearray)):
+                    st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_container_width=True)
                     st.download_button(
                         "⬇️ Download Edited",
                         data=edited_bytes,
                         file_name=f"edited_{i}.png",
                         mime="image/png",
-                        key=f"edit_dl_{i}"
+                        key=f"edit_dl_hist_{i}"
                     )
