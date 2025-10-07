@@ -21,7 +21,7 @@ vertexai.init(project=PROJECT_ID, location="us-central1", credentials=credential
 
 # Models
 IMAGEN_MODEL = ImageGenerationModel.from_pretrained("imagen-4.0-generate-001")
-NANO_BANANA = GenerativeModel("gemini-2.5-flash-image")  # Your actual Nano Banana model
+NANO_BANANA = GenerativeModel("gemini-2.5-flash-image")
 TEXT_MODEL = GenerativeModel("gemini-2.0-flash")
 
 # ---------------- STREAMLIT CONFIG ----------------
@@ -105,79 +105,13 @@ def run_nano_banana_edit(edit_prompt, base_bytes):
         st.error(f"❌ Nano Banana editing error: {str(e)}")
         return None
 
-def run_advanced_nano_banana_edit(edit_prompt, base_bytes):
-    """Alternative approach with different prompt style."""
-    try:
-        input_image = Part.from_data(mime_type="image/png", data=base_bytes)
-        
-        # Different prompt style that might work better
-        edit_instruction = f"""
-        [IMAGE_EDITING]
-        INPUT_IMAGE: provided image
-        EDIT_INSTRUCTION: {edit_prompt}
-        OUTPUT_FORMAT: edited PNG image only
-        CONSTRAINTS: 
-        - Preserve original composition where relevant
-        - Apply changes accurately
-        - No text or labels in output
-        - Maintain image quality
-        [/IMAGE_EDITING]
-        
-        Return the edited image as inline data.
-        """
-        
-        response = NANO_BANANA.generate_content([input_image, edit_instruction])
-        
-        # Try multiple ways to extract the image
-        edited_image = extract_image_from_response(response)
-        if edited_image:
-            return edited_image
-            
-        st.error("❌ Could not extract edited image from response")
-        return None
-        
-    except Exception as e:
-        st.error(f"❌ Advanced editing error: {str(e)}")
-        return None
-
-def extract_image_from_response(response):
-    """Extract image data from various response formats."""
-    # Method 1: Check candidates
-    if hasattr(response, 'candidates'):
-        for candidate in response.candidates:
-            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
-                for part in candidate.content.parts:
-                    if hasattr(part, 'inline_data') and part.inline_data:
-                        return part.inline_data.data
-    
-    # Method 2: Check direct parts
-    if hasattr(response, 'parts'):
-        for part in response.parts:
-            if hasattr(part, 'inline_data') and part.inline_data:
-                return part.inline_data.data
-    
-    # Method 3: Check for text that might contain base64 (fallback)
-    if hasattr(response, 'text'):
-        text_content = response.text
-        # Look for base64 image data in text
-        if 'data:image' in text_content:
-            import base64
-            try:
-                # Extract base64 data
-                base64_data = text_content.split('data:image/png;base64,')[1].split('"')[0]
-                return base64.b64decode(base64_data)
-            except:
-                pass
-    
-    return None
-
-# ---------------- PROMPT TEMPLATES & STYLES (keep your existing ones) ----------------
+# ---------------- PROMPT TEMPLATES & STYLES ----------------
 PROMPT_TEMPLATES = {
     "Marketing": """
 You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals.
 
 Task:
-- Take the user’s raw input and turn it into a polished, professional, campaign-ready image prompt.
+- Take the user's raw input and turn it into a polished, professional, campaign-ready image prompt.
 - Expand the idea with rich marketing-oriented details that make it visually persuasive.
 
 When refining, include:
@@ -188,16 +122,15 @@ When refining, include:
 - Mood, tone & branding suitability (premium, sleek, aspirational)
 
 Special Brand Rule:
-- If the user asks for an image related to a specific brand, seamlessly add the brand’s tagline into the final image prompt.
-- For **Dr. Reddy’s**, the correct tagline is: “Good Health Can’t Wait.”
+- If the user asks for an image related to a specific brand, seamlessly add the brand's tagline into the final image prompt.
+- For **Dr. Reddy's**, the correct tagline is: "Good Health Can't Wait."
 
 Rules:
-- Stay faithful to the user’s idea but elevate it for use in ads, social media, or presentations.
+- Stay faithful to the user's idea but elevate it for use in ads, social media, or presentations.
 - Output **only** the final refined image prompt (no explanations, no extra text).
 
 User raw input:
 {USER_PROMPT}
-
 
 Refined marketing image prompt:
 """,
@@ -218,7 +151,7 @@ Rules:
 - Keep fidelity to the idea but make it highly creative and visually unique.
 - Output only the final refined image prompt.
 
-User’s raw prompt:
+User's raw prompt:
 "{USER_PROMPT}"
 
 Refined design image prompt:
@@ -228,7 +161,7 @@ Refined design image prompt:
 You are an expert AI prompt engineer specialized in creating vivid and descriptive image prompts.
 
 Your job:
-- Expand the user’s input into a detailed, clear prompt for an image generation model.
+- Expand the user's input into a detailed, clear prompt for an image generation model.
 - Add missing details such as:
   • Background and setting
   • Lighting and mood
@@ -236,11 +169,11 @@ Your job:
   • Perspective and composition
 
 Rules:
-- Stay true to the user’s intent.
+- Stay true to the user's intent.
 - Keep language concise, descriptive, and expressive.
 - Output only the final refined image prompt.
 
-User’s raw prompt:
+User's raw prompt:
 "{USER_PROMPT}"
 
 Refined general image prompt:
@@ -261,10 +194,10 @@ Your job:
 
 Rules:
 - Ensure images are suitable for IT presentations, product demos, training, technical documentation, and digital transformation campaigns.
-- Stay true to the user’s intent but emphasize a technological and innovative look.
+- Stay true to the user's intent but emphasize a technological and innovative look.
 - Output only the final refined image prompt.
 
-User’s raw prompt:
+User's raw prompt:
 "{USER_PROMPT}"
 
 Refined DPEX image prompt:
@@ -284,10 +217,10 @@ Your job:
 
 Rules:
 - Ensure images are suitable for HR presentations, recruitment campaigns, internal training, or employee engagement material.
-- Stay true to the user’s intent but emphasize people, culture, and workplace positivity.
+- Stay true to the user's intent but emphasize people, culture, and workplace positivity.
 - Output only the final refined image prompt.
 
-User’s raw prompt:
+User's raw prompt:
 "{USER_PROMPT}"
 
 Refined HR image prompt:
@@ -308,19 +241,18 @@ Your job:
 
 Rules:
 - Ensure images are suitable for corporate branding, investor decks, strategy sessions, or professional reports.
-- Stay true to the user’s intent but emphasize professionalism, ambition, and success.
+- Stay true to the user's intent but emphasize professionalism, ambition, and success.
 - Output only the final refined image prompt.
 
-User’s raw prompt:
+User's raw prompt:
 "{USER_PROMPT}"
 
 Refined business image prompt:
 """
 }
 
-
 STYLE_DESCRIPTIONS = {
-    "None": "No special styling — keep the image natural, faithful to the user’s idea.",
+    "None": "No special styling — keep the image natural, faithful to the user's idea.",
     "Smart": "A clean, balanced, and polished look. Professional yet neutral, visually appealing without strong artistic bias.",
     "Cinematic": "Film-style composition with professional lighting. Wide dynamic range, dramatic highlights, storytelling feel.",
     "Creative": "Playful, imaginative, and experimental. Bold artistic choices, unexpected elements, and expressive color use.",
@@ -336,32 +268,23 @@ STYLE_DESCRIPTIONS = {
     "Vibrant": "Bold, saturated colors. High contrast, energetic mood, eye-catching and lively presentation.",
     "Pop Art": "Comic-book and pop-art inspired. Bold outlines, halftone patterns, flat vivid colors, high contrast, playful tone.",
     "Vector": "Flat vector graphics. Smooth shapes, sharp edges, solid fills, and clean scalable style like logos or icons.",
-
     "Watercolor": "Soft, fluid strokes with delicate blending and washed-out textures. Artistic and dreamy.",
     "Oil Painting": "Rich, textured brushstrokes. Classic fine art look with deep color blending.",
     "Charcoal": "Rough, sketchy textures with dark shading. Artistic, raw, dramatic effect.",
     "Line Art": "Minimal monochrome outlines with clean, bold strokes. No shading, focus on form.",
-
     "Anime": "Japanese animation style with vibrant colors, clean outlines, expressive features, and stylized proportions.",
     "Cartoon": "Playful, exaggerated features, simplified shapes, bold outlines, and bright colors.",
     "Pixel Art": "Retro digital art style. Small, pixel-based visuals resembling old-school video games.",
-
     "Fantasy Art": "Epic fantasy scenes. Magical elements, mythical creatures, enchanted landscapes.",
     "Surreal": "Dreamlike, bizarre imagery. Juxtaposes unexpected elements, bending reality.",
     "Concept Art": "Imaginative, detailed artwork for games or films. Often moody and cinematic.",
-
     "Cyberpunk": "Futuristic neon city vibes. High contrast, glowing lights, dark tones, sci-fi feel.",
     "Steampunk": "Retro-futuristic style with gears, brass, Victorian aesthetics, and industrial design.",
     "Neon Glow": "Bright neon outlines and glowing highlights. Futuristic, nightlife aesthetic.",
     "Low Poly": "Simplified 3D style using flat geometric shapes and polygons.",
     "Isometric": "3D look with isometric perspective. Often used for architecture, games, and diagrams.",
-
     "Vintage": "Old-school, retro tones. Faded colors, film grain, sepia, or retro print feel.",
     "Graffiti": "Urban street art style with bold colors, spray paint textures, and rebellious tone."
-}
-
-STYLE_DESCRIPTIONS = {
-    # ... (include your style descriptions)
 }
 
 # ---------------- GENERATE SECTION ----------------
@@ -461,62 +384,42 @@ if st.session_state.editing_image:
             key="nano_edit_prompt"
         )
         
-        edit_method = st.radio(
-            "Editing Method",
-            ["Standard Edit", "Advanced Edit"],
-            help="Standard: Direct editing | Advanced: Alternative approach"
-        )
-        
-        num_edits = st.slider("Number of edit variations", 1, 3, 1)
-        
         if st.button("🚀 Apply Nano Banana Edit", type="primary", key="nano_edit_btn"):
             if not edit_prompt.strip():
                 st.warning("Please enter edit instructions.")
             else:
                 with st.spinner("Nano Banana is editing your image..."):
-                    edited_versions = []
+                    edited_bytes = run_nano_banana_edit(edit_prompt, img_data)
                     
-                    for i in range(num_edits):
-                        if edit_method == "Standard Edit":
-                            edited_bytes = run_nano_banana_edit(edit_prompt, img_data)
-                        else:
-                            edited_bytes = run_advanced_nano_banana_edit(edit_prompt, img_data)
-                        
-                        if edited_bytes:
-                            edited_versions.append(edited_bytes)
-                            st.success(f"✅ Edit variation {i+1} completed!")
-                    
-                    if edited_versions:
+                    if edited_bytes:
+                        st.success("✅ Edit completed!")
                         st.balloons()
                         
-                        # Display all edited versions
-                        edited_cols = st.columns(len(edited_versions))
-                        for idx, edited_bytes in enumerate(edited_versions):
-                            with edited_cols[idx]:
-                                edited_filename = f"nano_edited_v{idx+1}_{img_name}"
-                                st.image(
-                                    Image.open(BytesIO(edited_bytes)), 
-                                    caption=f"Edited Version {idx+1}",
-                                    use_column_width=True
-                                )
-                                
-                                # Download button
-                                st.download_button(
-                                    f"⬇️ Download V{idx+1}",
-                                    data=edited_bytes,
-                                    file_name=edited_filename,
-                                    mime="image/png",
-                                    key=f"nano_dl_{idx}",
-                                )
-                                
-                                # Save to history
-                                if st.button(f"💾 Save V{idx+1}", key=f"save_{idx}"):
-                                    st.session_state.generated_images.append({
-                                        "filename": edited_filename,
-                                        "content": edited_bytes,
-                                        "prompt": f"Nano Edit: {edit_prompt}"
-                                    })
-                                    st.toast(f"Version {idx+1} saved to history!")
+                        # Display edited image
+                        edited_filename = f"nano_edited_{img_name}"
+                        st.image(
+                            Image.open(BytesIO(edited_bytes)), 
+                            caption="Edited Version",
+                            use_column_width=True
+                        )
+                        
+                        # Download button
+                        st.download_button(
+                            "⬇️ Download Edited Image",
+                            data=edited_bytes,
+                            file_name=edited_filename,
+                            mime="image/png",
+                            key="nano_dl",
+                        )
+                        
+                        # Save to history
+                        if st.button("💾 Save to History"):
+                            st.session_state.generated_images.append({
+                                "filename": edited_filename,
+                                "content": edited_bytes,
+                                "prompt": f"Nano Edit: {edit_prompt}"
+                            })
+                            st.toast("Edited image saved to history!")
                     else:
                         st.error("""
                         ❌ Nano Banana editing failed. This could be because:
@@ -530,19 +433,3 @@ if st.session_state.editing_image:
         if st.button("❌ Clear Editor", type="secondary"):
             st.session_state.editing_image = None
             st.rerun()
-
-# Show available models in sidebar
-with st.sidebar:
-    st.header("🔧 Models in Use")
-    st.success("✅ Imagen 4.0 - Image Generation")
-    st.success("✅ Gemini 2.5 Flash Image - Image Editing")
-    st.success("✅ Gemini 2.0 Flash - Prompt Refinement")
-    
-    st.header("💡 Editing Tips")
-    st.info("""
-    For best Nano Banana results:
-    • Be specific with changes
-    • Reference elements in the image
-    • Try different phrasing
-    • Start with simple edits
-    """)
