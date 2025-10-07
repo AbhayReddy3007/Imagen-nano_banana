@@ -1,5 +1,4 @@
 import os
-import re
 import datetime
 import json
 from io import BytesIO
@@ -34,11 +33,12 @@ st.title("🖼️ Imagen + Nano Banana | AI Image Generator & Editor")
 if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
 if "editing_image" not in st.session_state:
-    st.session_state.editing_image = None  # store {"filename", "content"}
+    st.session_state.editing_image = None
 
 
 # ---------------- HELPERS ----------------
 def safe_get_enhanced_text(resp):
+    """Extract refined prompt text safely."""
     if hasattr(resp, "text") and resp.text:
         return resp.text
     if hasattr(resp, "candidates") and resp.candidates:
@@ -50,6 +50,7 @@ def safe_get_enhanced_text(resp):
 
 
 def get_image_bytes_from_genobj(gen_obj):
+    """Extract bytes from Imagen response object."""
     if isinstance(gen_obj, (bytes, bytearray)):
         return bytes(gen_obj)
     for attr in ["image_bytes", "_image_bytes"]:
@@ -66,13 +67,11 @@ def run_edit_flow(edit_prompt, base_bytes):
     """Edit image using Nano Banana (Gemini 2.5 Flash Image)."""
     input_image = Part.from_data(mime_type="image/png", data=base_bytes)
     edit_instruction = (
-        f"You are an expert image editor. "
-        f"Apply these edits carefully: {edit_prompt}. "
+        f"You are an expert AI image editor. "
+        f"Apply the following edit: {edit_prompt}. "
         f"Return only the edited image as inline PNG — no text or explanation."
     )
-
     resp = NANO_BANANA.generate_content([edit_instruction, input_image])
-
     for candidate in getattr(resp, "candidates", []):
         for part in getattr(candidate.content, "parts", []):
             if hasattr(part, "inline_data") and part.inline_data.data:
@@ -306,6 +305,7 @@ if st.button("🚀 Generate with Imagen"):
                 img_bytes = get_image_bytes_from_genobj(gen_obj)
                 if not img_bytes:
                     continue
+
                 filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
                 st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
 
@@ -328,6 +328,7 @@ if st.session_state.editing_image:
     img_data = st.session_state.editing_image["content"]
     img_name = st.session_state.editing_image["filename"]
 
+    # Display image to be edited
     st.image(Image.open(BytesIO(img_data)), caption=f"Editing: {img_name}", use_column_width=True)
 
     edit_prompt = st.text_area("Enter your edit instruction", height=100, key="inline_edit_prompt")
@@ -356,3 +357,8 @@ if st.session_state.editing_image:
                         )
                 else:
                     st.error("❌ No edited image returned by Nano Banana.")
+
+    # Optional: Reset editor
+    if st.button("❌ Clear Editor"):
+        st.session_state.editing_image = None
+        st.experimental_rerun()
