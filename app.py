@@ -314,6 +314,7 @@ if st.button("🚀 Generate with Imagen"):
                         if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}_{datetime.datetime.now().timestamp()}"):
                             st.session_state.editing_image = {"filename": filename, "content": img_bytes}
                             st.toast("✅ Image sent to Nano Banana Editor below!")
+                            st.experimental_rerun() 
                 except Exception as e:
                     st.warning(f"⚠️ Unable to display image {i}: {e}")
 
