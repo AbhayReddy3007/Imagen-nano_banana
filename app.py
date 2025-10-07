@@ -352,25 +352,68 @@ with tab_edit:
                     st.error("❌ No edited image returned by Nano Banana.")
 
 # ---------------- HISTORY ----------------
+# ---------------- HISTORY ----------------
 st.subheader("📂 History")
+
+# ===== Generated Images =====
 if st.session_state.generated_images:
     st.markdown("### Generated Images")
     for i, img in enumerate(reversed(st.session_state.generated_images[-10:])):
-        with st.expander(f"{i+1}. {img['filename']}"):
+        with st.expander(f"{i+1}. {img.get('filename', 'Unnamed Image')}"):
             content = img.get("content")
-if isinstance(content, (bytes, bytearray)) and len(content) > 0:
-    st.image(Image.open(BytesIO(content)), caption=img["filename"], use_container_width=True)
-else:
-    st.warning(f"⚠️ Skipping invalid image: {img.get('filename', 'unknown')}")
 
-            st.download_button("⬇️ Download Again", data=img["content"], file_name=img["filename"], mime="image/png")
+            if isinstance(content, (bytes, bytearray)) and len(content) > 0:
+                try:
+                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
+                except Exception as e:
+                    st.warning(f"⚠️ Unable to display image: {e}")
+            else:
+                st.warning(f"⚠️ Skipping invalid or empty image: {img.get('filename', 'unknown')}")
 
+            if isinstance(content, (bytes, bytearray)):
+                st.download_button(
+                    "⬇️ Download Again",
+                    data=content,
+                    file_name=img.get("filename", "generated_image.png"),
+                    mime="image/png",
+                    key=f"gen_dl_{i}"
+                )
+
+# ===== Edited Images =====
 if st.session_state.edited_images:
     st.markdown("### Edited Images")
     for i, entry in enumerate(reversed(st.session_state.edited_images[-10:])):
-        with st.expander(f"Edited {i+1}: {entry['prompt']}"):
+        with st.expander(f"Edited {i+1}: {entry.get('prompt', '')}"):
             col1, col2 = st.columns(2)
+
+            # --- Original Image ---
             with col1:
-                st.image(Image.open(BytesIO(entry["original"])), caption="Original", use_column_width=True)
+                orig_bytes = entry.get("original")
+                if isinstance(orig_bytes, (bytes, bytearray)) and len(orig_bytes) > 0:
+                    try:
+                        st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_column_width=True)
+                    except Exception as e:
+                        st.warning(f"⚠️ Failed to load original: {e}")
+                else:
+                    st.warning("⚠️ Original image missing or invalid.")
+
+            # --- Edited Image ---
             with col2:
-                st.image(Image.open(BytesIO(entry["edited"])), caption="Edited", use_column_width=True)
+                edited_bytes = entry.get("edited")
+                if isinstance(edited_bytes, (bytes, bytearray)) and len(edited_bytes) > 0:
+                    try:
+                        st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_column_width=True)
+                    except Exception as e:
+                        st.warning(f"⚠️ Failed to load edited image: {e}")
+                else:
+                    st.warning("⚠️ Edited image missing or invalid.")
+
+                if isinstance(edited_bytes, (bytes, bytearray)):
+                    st.download_button(
+                        "⬇️ Download Edited",
+                        data=edited_bytes,
+                        file_name=f"edited_{i}.png",
+                        mime="image/png",
+                        key=f"edit_dl_{i}"
+                    )
+
