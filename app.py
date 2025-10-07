@@ -92,7 +92,6 @@ IMPORTANT:
                 if hasattr(part, "inline_data") and part.inline_data.data:
                     return part.inline_data.data
 
-        # fallback if Gemini returns text
         try:
             fb = response.candidates[0].content.parts[0].text
             st.warning(f"⚠️ Gemini did not return an image. Response: {fb}")
@@ -363,6 +362,7 @@ with tab_edit:
     uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"], key="file_upload")
     base_image = None
 
+    # If image came from Generate tab
     if "edit_image_bytes" in st.session_state:
         base_image = st.session_state["edit_image_bytes"]
         st.image(Image.open(BytesIO(base_image)),
@@ -374,8 +374,7 @@ with tab_edit:
         buf = BytesIO()
         img.save(buf, format="PNG")
         base_image = buf.getvalue()
-        st.image(base_image, caption="Uploaded Image", use_container_width=True)
-
+        st.image(base_image, caption="Uploaded Image", use_container_width=True, output_format="PNG")
 
     edit_prompt = st.text_area("Enter your edit instruction", height=120, key="edit_prompt")
     num_edits = st.slider("🧾 Number of edited images", 1, 3, 1, key="num_edits")
@@ -413,27 +412,21 @@ with tab_edit:
 # ---------------- HISTORY ----------------
 st.subheader("📂 History")
 
-# ----- Generated -----
 if st.session_state.generated_images:
     st.markdown("### Generated Images")
     for i, img in enumerate(reversed(st.session_state.generated_images[-10:])):
         with st.expander(f"{i+1}. {img.get('filename', 'Unnamed Image')}"):
             content = img.get("content")
             if isinstance(content, (bytes, bytearray)) and len(content) > 0:
-                try:
-                    st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
-                except Exception as e:
-                    st.warning(f"⚠️ Unable to display image: {e}")
-            if isinstance(content, (bytes, bytearray)):
-                st.download_button(
-                    "⬇️ Download Again",
-                    data=content,
-                    file_name=img.get("filename", "generated_image.png"),
-                    mime="image/png",
-                    key=f"gen_dl_hist_{i}"
-                )
+                st.image(Image.open(BytesIO(content)), caption=img.get("filename", "Generated Image"), use_container_width=True)
+            st.download_button(
+                "⬇️ Download Again",
+                data=content,
+                file_name=img.get("filename", "generated_image.png"),
+                mime="image/png",
+                key=f"gen_dl_hist_{i}"
+            )
 
-# ----- Edited -----
 if st.session_state.edited_images:
     st.markdown("### Edited Images")
     for i, entry in enumerate(reversed(st.session_state.edited_images[-10:])):
@@ -441,16 +434,14 @@ if st.session_state.edited_images:
             col1, col2 = st.columns(2)
             with col1:
                 orig_bytes = entry.get("original")
-                if isinstance(orig_bytes, (bytes, bytearray)) and len(orig_bytes) > 0:
-                    st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_container_width=True)
+                st.image(Image.open(BytesIO(orig_bytes)), caption="Original", use_container_width=True)
             with col2:
                 edited_bytes = entry.get("edited")
-                if isinstance(edited_bytes, (bytes, bytearray)) and len(edited_bytes) > 0:
-                    st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_container_width=True)
-                    st.download_button(
-                        "⬇️ Download Edited",
-                        data=edited_bytes,
-                        file_name=f"edited_{i}.png",
-                        mime="image/png",
-                        key=f"edit_dl_hist_{i}"
-                    )
+                st.image(Image.open(BytesIO(edited_bytes)), caption="Edited", use_container_width=True)
+                st.download_button(
+                    "⬇️ Download Edited",
+                    data=edited_bytes,
+                    file_name=f"edited_{i}.png",
+                    mime="image/png",
+                    key=f"edit_dl_hist_{i}"
+                )
