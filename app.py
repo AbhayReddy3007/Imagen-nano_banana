@@ -374,7 +374,8 @@ with tab_edit:
         buf = BytesIO()
         img.save(buf, format="PNG")
         base_image = buf.getvalue()
-        st.image(img, caption="Uploaded Image", use_container_width=True)
+        st.image(base_image, caption="Uploaded Image", use_container_width=True)
+
 
     edit_prompt = st.text_area("Enter your edit instruction", height=120, key="edit_prompt")
     num_edits = st.slider("🧾 Number of edited images", 1, 3, 1, key="num_edits")
