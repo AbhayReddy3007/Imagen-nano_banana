@@ -270,6 +270,7 @@ style = st.selectbox("🎨 Style", list(STYLE_DESCRIPTIONS.keys()), index=0)
 user_prompt = st.text_area("Enter your prompt", height=120)
 num_images = st.slider("🧾 Number of images", 1, 4, 1)
 
+# GENERATE BUTTON
 if st.button("🚀 Generate with Imagen"):
     if not user_prompt.strip():
         st.warning("Please enter a prompt.")
@@ -316,7 +317,7 @@ if st.button("🚀 Generate with Imagen"):
                 except Exception as e:
                     st.warning(f"⚠️ Unable to display image {i}: {e}")
 
-# ---------------- INLINE EDIT SECTION ----------------
+# ---------------- INLINE EDIT SECTION (OUTSIDE GENERATION) ----------------
 if st.session_state.editing_image:
     st.divider()
     st.subheader("🖌️ Edit with Nano Banana")
@@ -324,6 +325,7 @@ if st.session_state.editing_image:
     img_data = st.session_state.editing_image["content"]
     img_name = st.session_state.editing_image["filename"]
 
+    # Display image for editing
     st.image(Image.open(BytesIO(img_data)), caption=f"Editing: {img_name}", use_column_width=True)
 
     edit_prompt = st.text_area("Enter your edit instruction", height=100, key="inline_edit_prompt")
