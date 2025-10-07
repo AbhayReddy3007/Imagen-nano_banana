@@ -357,7 +357,12 @@ if st.session_state.generated_images:
     st.markdown("### Generated Images")
     for i, img in enumerate(reversed(st.session_state.generated_images[-10:])):
         with st.expander(f"{i+1}. {img['filename']}"):
-            st.image(Image.open(BytesIO(img["content"])), caption=img["filename"], use_container_width=True)
+            content = img.get("content")
+if isinstance(content, (bytes, bytearray)) and len(content) > 0:
+    st.image(Image.open(BytesIO(content)), caption=img["filename"], use_container_width=True)
+else:
+    st.warning(f"⚠️ Skipping invalid image: {img.get('filename', 'unknown')}")
+
             st.download_button("⬇️ Download Again", data=img["content"], file_name=img["filename"], mime="image/png")
 
 if st.session_state.edited_images:
