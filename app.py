@@ -307,7 +307,7 @@ with tab_generate:
     dept = st.selectbox("🏢 Department", list(PROMPT_TEMPLATES.keys()), index=0)
     style = st.selectbox("🎨 Style", list(STYLE_DESCRIPTIONS.keys()), index=0)
     user_prompt = st.text_area("Enter your prompt", height=120)
-    num_images = st.slider("🧾 Number of images", 1, 4, 1)
+    num_images = 1
 
     if st.button("🚀 Generate with Imagen"):
         if not user_prompt.strip():
@@ -370,7 +370,7 @@ with tab_edit:
         show_image_safe(base_image, caption="Uploaded Image")
 
     edit_prompt = st.text_area("Enter your edit instruction", height=120)
-    num_edits = st.slider("🧾 Number of edited images", 1, 3, 1)
+    num_edits = 1
 
     if st.button("🚀 Edit with Nano Banana"):
         if not base_image or not edit_prompt.strip():
