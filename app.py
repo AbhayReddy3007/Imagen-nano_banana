@@ -4,6 +4,7 @@ import json
 from io import BytesIO
 import streamlit as st
 from PIL import Image
+import base64
 
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
@@ -20,7 +21,7 @@ vertexai.init(project=PROJECT_ID, location="us-central1", credentials=credential
 
 # Models
 IMAGEN_MODEL = ImageGenerationModel.from_pretrained("imagen-4.0-generate-001")
-NANO_BANANA = GenerativeModel("gemini-2.5-flash-image")
+NANO_BANANA = GenerativeModel("gemini-2.5-flash-image")  # Your actual Nano Banana model
 TEXT_MODEL = GenerativeModel("gemini-2.0-flash")
 
 # ---------------- STREAMLIT CONFIG ----------------
@@ -58,22 +59,119 @@ def get_image_bytes_from_genobj(gen_obj):
                 return getattr(gen_obj.image, attr)
     return None
 
-def run_edit_flow(edit_prompt, base_bytes):
-    """Edit an image using Nano Banana (Gemini 2.5 Flash Image)."""
-    input_image = Part.from_data(mime_type="image/png", data=base_bytes)
-    edit_instruction = (
-        f"You are an expert AI image editor. "
-        f"Apply these edits carefully: {edit_prompt}. "
-        f"Return only the edited image as inline PNG — no text or captions."
-    )
-    resp = NANO_BANANA.generate_content([edit_instruction, input_image])
-    for candidate in getattr(resp, "candidates", []):
-        for part in getattr(candidate.content, "parts", []):
-            if hasattr(part, "inline_data") and part.inline_data.data:
+def run_nano_banana_edit(edit_prompt, base_bytes):
+    """Edit an image using Nano Banana (Gemini 2.5 Flash Image) with proper image editing."""
+    try:
+        # Create the image part
+        input_image = Part.from_data(mime_type="image/png", data=base_bytes)
+        
+        # More specific editing instructions for better results
+        edit_instruction = f"""
+        <EDITING_TASK>
+        You are an expert AI image editor. Modify the provided image according to these instructions: {edit_prompt}
+        
+        Important rules:
+        1. Maintain the core composition and style when possible
+        2. Apply the requested changes precisely
+        3. Return ONLY the edited image as inline data
+        4. Do not add any text, watermarks, or captions
+        5. Keep the same aspect ratio and quality
+        
+        Expected output: Edited image only, no text response.
+        </EDITING_TASK>
+        """
+        
+        # Generate content with the image and edit instructions
+        response = NANO_BANANA.generate_content([edit_instruction, input_image])
+        
+        # Extract the edited image from response
+        if hasattr(response, 'candidates') and response.candidates:
+            for candidate in response.candidates:
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    for part in candidate.content.parts:
+                        if hasattr(part, 'inline_data') and part.inline_data:
+                            return part.inline_data.data
+        
+        # Alternative extraction method
+        if hasattr(response, 'parts'):
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    return part.inline_data.data
+        
+        st.error("❌ No edited image found in Nano Banana response")
+        return None
+        
+    except Exception as e:
+        st.error(f"❌ Nano Banana editing error: {str(e)}")
+        return None
+
+def run_advanced_nano_banana_edit(edit_prompt, base_bytes):
+    """Alternative approach with different prompt style."""
+    try:
+        input_image = Part.from_data(mime_type="image/png", data=base_bytes)
+        
+        # Different prompt style that might work better
+        edit_instruction = f"""
+        [IMAGE_EDITING]
+        INPUT_IMAGE: provided image
+        EDIT_INSTRUCTION: {edit_prompt}
+        OUTPUT_FORMAT: edited PNG image only
+        CONSTRAINTS: 
+        - Preserve original composition where relevant
+        - Apply changes accurately
+        - No text or labels in output
+        - Maintain image quality
+        [/IMAGE_EDITING]
+        
+        Return the edited image as inline data.
+        """
+        
+        response = NANO_BANANA.generate_content([input_image, edit_instruction])
+        
+        # Try multiple ways to extract the image
+        edited_image = extract_image_from_response(response)
+        if edited_image:
+            return edited_image
+            
+        st.error("❌ Could not extract edited image from response")
+        return None
+        
+    except Exception as e:
+        st.error(f"❌ Advanced editing error: {str(e)}")
+        return None
+
+def extract_image_from_response(response):
+    """Extract image data from various response formats."""
+    # Method 1: Check candidates
+    if hasattr(response, 'candidates'):
+        for candidate in response.candidates:
+            if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                for part in candidate.content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        return part.inline_data.data
+    
+    # Method 2: Check direct parts
+    if hasattr(response, 'parts'):
+        for part in response.parts:
+            if hasattr(part, 'inline_data') and part.inline_data:
                 return part.inline_data.data
+    
+    # Method 3: Check for text that might contain base64 (fallback)
+    if hasattr(response, 'text'):
+        text_content = response.text
+        # Look for base64 image data in text
+        if 'data:image' in text_content:
+            import base64
+            try:
+                # Extract base64 data
+                base64_data = text_content.split('data:image/png;base64,')[1].split('"')[0]
+                return base64.b64decode(base64_data)
+            except:
+                pass
+    
     return None
 
-# ---------------- PROMPTS & STYLES ----------------
+# ---------------- PROMPT TEMPLATES & STYLES (keep your existing ones) ----------------
 PROMPT_TEMPLATES = {
     "Marketing": """
 You are a senior AI prompt engineer creating polished prompts for marketing and advertising visuals.
@@ -262,6 +360,10 @@ STYLE_DESCRIPTIONS = {
     "Graffiti": "Urban street art style with bold colors, spray paint textures, and rebellious tone."
 }
 
+STYLE_DESCRIPTIONS = {
+    # ... (include your style descriptions)
+}
+
 # ---------------- GENERATE SECTION ----------------
 st.header("✨ Generate Images (Imagen 4)")
 
@@ -285,7 +387,10 @@ if st.button("🚀 Generate with Imagen"):
 
         with st.spinner("Generating with Imagen 4..."):
             try:
-                resp = IMAGEN_MODEL.generate_images(prompt=enhanced_prompt, number_of_images=num_images)
+                resp = IMAGEN_MODEL.generate_images(
+                    prompt=enhanced_prompt, 
+                    number_of_images=num_images
+                )
             except Exception as e:
                 st.error(f"⚠️ Imagen error: {e}")
                 st.stop()
@@ -295,68 +400,149 @@ if st.button("🚀 Generate with Imagen"):
                     gen_obj = resp.images[i]
                     img_bytes = get_image_bytes_from_genobj(gen_obj)
                     if not img_bytes:
+                        st.warning(f"Could not extract image {i}")
                         continue
+                    
                     filename = f"{dept.lower()}_{style.lower()}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
-                    st.session_state.generated_images.append({"filename": filename, "content": img_bytes})
+                    st.session_state.generated_images.append({
+                        "filename": filename, 
+                        "content": img_bytes,
+                        "prompt": enhanced_prompt
+                    })
 
-                    st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        unique_dl_key = f"dl_{i}_{datetime.datetime.now().timestamp()}"
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.image(Image.open(BytesIO(img_bytes)), caption=filename, use_column_width=True)
+                    with col2:
                         st.download_button(
                             "⬇️ Download",
                             data=img_bytes,
                             file_name=filename,
                             mime="image/png",
-                            key=unique_dl_key,
+                            key=f"dl_{i}_{datetime.datetime.now().timestamp()}",
                         )
-                    with col_b:
-                        if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}_{datetime.datetime.now().timestamp()}"):
-                            st.session_state.editing_image = {"filename": filename, "content": img_bytes}
-                            st.toast("✅ Image sent to Nano Banana Editor below!")
-                            st.experimental_rerun() 
+                        
+                        if st.button("🪄 Edit with Nano Banana", key=f"edit_btn_{i}"):
+                            st.session_state.editing_image = {
+                                "filename": filename, 
+                                "content": img_bytes,
+                                "original_prompt": enhanced_prompt
+                            }
+                            st.toast("✅ Image sent to Nano Banana Editor!")
+                            st.rerun()
+                            
                 except Exception as e:
-                    st.warning(f"⚠️ Unable to display image {i}: {e}")
+                    st.warning(f"⚠️ Unable to process image {i}: {e}")
 
-# ---------------- INLINE EDIT SECTION (OUTSIDE GENERATION) ----------------
+# ---------------- NANO BANANA EDIT SECTION ----------------
 if st.session_state.editing_image:
     st.divider()
-    st.subheader("🖌️ Edit with Nano Banana")
-
+    st.header("🖌️ Edit with Nano Banana (Gemini 2.5 Flash Image)")
+    
     img_data = st.session_state.editing_image["content"]
     img_name = st.session_state.editing_image["filename"]
+    original_prompt = st.session_state.editing_image.get("original_prompt", "")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Original Image")
+        st.image(Image.open(BytesIO(img_data)), caption=f"Editing: {img_name}", use_column_width=True)
+        if original_prompt:
+            with st.expander("Original Prompt"):
+                st.write(original_prompt)
+    
+    with col2:
+        st.subheader("Nano Banana Editor")
+        edit_prompt = st.text_area(
+            "Edit Instructions:",
+            placeholder="Examples:\n• 'Change the background to a beach sunset'\n• 'Make the colors more vibrant'\n• 'Add a cat sitting in the corner'\n• 'Convert to black and white with red accent'\n• 'Make it look like a watercolor painting'",
+            height=120,
+            key="nano_edit_prompt"
+        )
+        
+        edit_method = st.radio(
+            "Editing Method",
+            ["Standard Edit", "Advanced Edit"],
+            help="Standard: Direct editing | Advanced: Alternative approach"
+        )
+        
+        num_edits = st.slider("Number of edit variations", 1, 3, 1)
+        
+        if st.button("🚀 Apply Nano Banana Edit", type="primary", key="nano_edit_btn"):
+            if not edit_prompt.strip():
+                st.warning("Please enter edit instructions.")
+            else:
+                with st.spinner("Nano Banana is editing your image..."):
+                    edited_versions = []
+                    
+                    for i in range(num_edits):
+                        if edit_method == "Standard Edit":
+                            edited_bytes = run_nano_banana_edit(edit_prompt, img_data)
+                        else:
+                            edited_bytes = run_advanced_nano_banana_edit(edit_prompt, img_data)
+                        
+                        if edited_bytes:
+                            edited_versions.append(edited_bytes)
+                            st.success(f"✅ Edit variation {i+1} completed!")
+                    
+                    if edited_versions:
+                        st.balloons()
+                        
+                        # Display all edited versions
+                        edited_cols = st.columns(len(edited_versions))
+                        for idx, edited_bytes in enumerate(edited_versions):
+                            with edited_cols[idx]:
+                                edited_filename = f"nano_edited_v{idx+1}_{img_name}"
+                                st.image(
+                                    Image.open(BytesIO(edited_bytes)), 
+                                    caption=f"Edited Version {idx+1}",
+                                    use_column_width=True
+                                )
+                                
+                                # Download button
+                                st.download_button(
+                                    f"⬇️ Download V{idx+1}",
+                                    data=edited_bytes,
+                                    file_name=edited_filename,
+                                    mime="image/png",
+                                    key=f"nano_dl_{idx}",
+                                )
+                                
+                                # Save to history
+                                if st.button(f"💾 Save V{idx+1}", key=f"save_{idx}"):
+                                    st.session_state.generated_images.append({
+                                        "filename": edited_filename,
+                                        "content": edited_bytes,
+                                        "prompt": f"Nano Edit: {edit_prompt}"
+                                    })
+                                    st.toast(f"Version {idx+1} saved to history!")
+                    else:
+                        st.error("""
+                        ❌ Nano Banana editing failed. This could be because:
+                        1. The model doesn't support direct image editing yet
+                        2. The edit instructions were too complex
+                        3. Temporary API issue
+                        
+                        Try simpler edits or use the Generate section with modified prompts.
+                        """)
+        
+        if st.button("❌ Clear Editor", type="secondary"):
+            st.session_state.editing_image = None
+            st.rerun()
 
-    # Display image for editing
-    st.image(Image.open(BytesIO(img_data)), caption=f"Editing: {img_name}", use_column_width=True)
-
-    edit_prompt = st.text_area("Enter your edit instruction", height=100, key="inline_edit_prompt")
-    num_edits = st.slider("🧾 Number of edited versions", 1, 3, 1, key="inline_num_edits")
-
-    if st.button("🚀 Apply Edit"):
-        if not edit_prompt.strip():
-            st.warning("Please enter an edit instruction.")
-        else:
-            with st.spinner("Editing with Nano Banana..."):
-                edited_versions = []
-                for _ in range(num_edits):
-                    edited = run_edit_flow(edit_prompt, img_data)
-                    if edited:
-                        edited_versions.append(edited)
-
-                if edited_versions:
-                    for i, out_bytes in enumerate(edited_versions):
-                        st.image(Image.open(BytesIO(out_bytes)), caption=f"Edited Version {i+1}", use_column_width=True)
-                        unique_edit_key = f"edit_dl_{i}_{img_name}_{datetime.datetime.now().timestamp()}"
-                        st.download_button(
-                            f"⬇️ Download Edited {i+1}",
-                            data=out_bytes,
-                            file_name=f"edited_{i}_{img_name}",
-                            mime="image/png",
-                            key=unique_edit_key,
-                        )
-                else:
-                    st.error("❌ No edited image returned by Nano Banana.")
-
-    if st.button("❌ Clear Editor"):
-        st.session_state.editing_image = None
-        st.experimental_rerun()
+# Show available models in sidebar
+with st.sidebar:
+    st.header("🔧 Models in Use")
+    st.success("✅ Imagen 4.0 - Image Generation")
+    st.success("✅ Gemini 2.5 Flash Image - Image Editing")
+    st.success("✅ Gemini 2.0 Flash - Prompt Refinement")
+    
+    st.header("💡 Editing Tips")
+    st.info("""
+    For best Nano Banana results:
+    • Be specific with changes
+    • Reference elements in the image
+    • Try different phrasing
+    • Start with simple edits
+    """)
