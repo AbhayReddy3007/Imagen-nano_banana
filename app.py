@@ -77,7 +77,7 @@ Instructions:
 - Take the provided image.
 - Apply these edits: {edit_prompt}.
 - Return the final edited image inline (PNG).
-- Do not include any extra text or captions.
+- Do not include any extra text or captions unless mentioned.
 """
 
     try:
