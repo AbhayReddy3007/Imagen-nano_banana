@@ -108,6 +108,14 @@ def select_image_for_edit(img_bytes, filename):
 # ---------------- PROMPT TEMPLATES ----------------
 PROMPT_TEMPLATES = {
 
+    "None": """
+Dont make any changes in the user's prompt.Follow it as it is
+User’s raw prompt:
+"{USER_PROMPT}"
+
+Refined general image prompt:
+""",
+
     "General": """
 You are an expert AI prompt engineer specialized in creating vivid and descriptive image prompts.
 
