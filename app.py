@@ -351,9 +351,7 @@ with tab_generate:
                         col_a, col_b = st.columns(2)
                         with col_a:
                             st.download_button("⬇️ Download", data=img_bytes, file_name=os.path.basename(filename), mime="image/png", key=f"dl_gen_{i}")
-                        with col_b:
-                            if st.button("🪄 Edit This Image", key=f"edit_btn_{i}_{datetime.datetime.now().timestamp()}"):
-                                select_image_for_edit(img_bytes, os.path.basename(filename))
+                        
                     except Exception as e:
                         st.error(f"⚠️ Failed to display image {i}: {e}")
 
