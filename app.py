@@ -361,9 +361,14 @@ with tab_generate:
 with tab_edit:
     st.header("Edit Images")
 
+    # Department and Style dropdowns
+    dept_edit = st.selectbox("🏢 Department (for edit refinement)", list(PROMPT_TEMPLATES.keys()), index=0, key="dept_edit")
+    style_edit = st.selectbox("🎨 Style", list(STYLE_DESCRIPTIONS.keys()), index=0, key="style_edit")
+
     uploaded_file = st.file_uploader("📤 Upload an image", type=["png", "jpg", "jpeg", "webp"])
     base_image = None
 
+    # Load image from session (if coming from Generate tab)
     if "edit_image_bytes" in st.session_state:
         base_image = st.session_state["edit_image_bytes"]
         show_image_safe(Image.open(BytesIO(base_image)),
@@ -376,6 +381,7 @@ with tab_edit:
         base_image = buf.getvalue()
         show_image_safe(base_image, caption="Uploaded Image")
 
+    # Edit prompt text box
     edit_prompt = st.text_area("Enter your edit instruction", height=120)
     num_edits = 1
 
@@ -383,10 +389,18 @@ with tab_edit:
         if not base_image or not edit_prompt.strip():
             st.warning("Please upload an image and enter instructions.")
         else:
+            with st.spinner("Refining edit prompt with Gemini..."):
+                refinement_prompt = PROMPT_TEMPLATES[dept_edit].replace("{USER_PROMPT}", edit_prompt)
+                if style_edit != "None":
+                    refinement_prompt += f"\n\nApply style: {STYLE_DESCRIPTIONS[style_edit]}"
+                text_resp = TEXT_MODEL.generate_content(refinement_prompt)
+                refined_edit_prompt = safe_get_enhanced_text(text_resp).strip()
+                st.info(f"🎨 Refined Edit Instruction:\n\n{refined_edit_prompt}")
+
             with st.spinner("Editing with Nano Banana..."):
                 edited_versions = []
                 for _ in range(num_edits):
-                    edited = run_edit_flow(edit_prompt, base_image)
+                    edited = run_edit_flow(refined_edit_prompt, base_image)
                     if edited:
                         edited_versions.append(edited)
 
@@ -407,10 +421,11 @@ with tab_edit:
                         st.session_state.edited_images.append({
                             "original": base_image,
                             "edited": out_bytes,
-                            "prompt": edit_prompt
+                            "prompt": refined_edit_prompt
                         })
                 else:
                     st.error("❌ No edited image returned by Nano Banana.")
+
 
 # ---------------- HISTORY ----------------
 st.subheader("📂 History")
