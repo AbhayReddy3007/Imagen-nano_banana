@@ -24,7 +24,7 @@ TEXT_MODEL = GenerativeModel("gemini-2.0-flash")  # Prompt refiner
 
 # ---------------- STREAMLIT CONFIG ----------------
 st.set_page_config(page_title="AI Image Generator + Editor", layout="wide")
-st.title("Imagen + Nano Banana")
+st.title("AI Image Generator + Editor")
 
 # ---------------- STATE ----------------
 if "generated_images" not in st.session_state:
