@@ -377,7 +377,7 @@ with tab_edit:
     edit_prompt = st.text_area("Enter your edit instruction", height=120)
     num_edits = 1
 
-    if st.button("🚀 Edit with Nano Banana"):
+    if st.button(" Edit image"):
         if not base_image or not edit_prompt.strip():
             st.warning("Please upload an image and enter instructions.")
         else:
